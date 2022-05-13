@@ -84,9 +84,9 @@ def write(ensemble_dict, cfg):
         ensemble_dict['n_classes']))
     fout.write('static const bool unroll = {};\n'.format(
         str(cfg['Pipeline']).lower()))
-    fout.write('typedef {} input_t;\n'.format(cfg['Precision']))
+    fout.write('typedef {} input_t;\n'.format(cfg['Precision_inputs']))
     fout.write('typedef input_t input_arr_t[n_features];\n')
-    fout.write('typedef {} score_t;\n'.format(cfg['Precision']))
+    fout.write('typedef {} score_t;\n'.format(cfg['Precision_score']))
     fout.write('typedef score_t score_arr_t[n_classes];\n')
     # TODO score_arr_t
     fout.write('typedef input_t threshold_t;\n\n')
@@ -285,7 +285,8 @@ def write(ensemble_dict, cfg):
 def auto_config():
     config = {'ProjectName': 'my_prj',
               'OutputDir': 'my-conifer-prj',
-              'Precision': 'ap_fixed<18,8>',
+              'Precision_inputs': 'ap_fixed<18,8>',
+              'Precision_score': 'ap_fixed<18,8>',
               'XilinxPart': 'xcvu9p-flgb2104-2L-e',
               'ClockPeriod': '5',
               'Pipeline' : True}
