@@ -56,10 +56,10 @@ int main(int argc, char **argv)
       char* cstr=const_cast<char*>(iline.c_str());
       char* current;
       std::vector<float> in;
-      current=strtok(cstr," ");
+      current=strtok(cstr,",");
       while(current!=NULL) {
         in.push_back(atof(current));
-        current=strtok(NULL," ");
+        current=strtok(NULL,",");
       }
 
       //hls-fpga-machine-learning insert data
