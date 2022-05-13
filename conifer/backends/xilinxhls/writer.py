@@ -35,7 +35,7 @@ def get_hls():
 
     return tool_exe
 
-def make_optimized_optimized_bdt_code_replacements(ensemble_dict):
+def make_optimized_optimized_bdt_code_replacements(ensemble_dict, cfg):
     nodes_list=[]
     leaves_list=[]
     trees_list=[]
@@ -44,8 +44,12 @@ def make_optimized_optimized_bdt_code_replacements(ensemble_dict):
         nodes_list.append('\tcase {}:return {};'.format(ntree, len(x[0]['feature'])))
         leaves_list.append('\tcase {}:return {};'.format(ntree, len([f for f in x[0]['feature'] if f==-2])))
         trees_list.append("\tTree<{0}, input_t, score_t, threshold_t> tree_{0}[fn_classes(n_classes)];".format(ntree))
-        decision_functions_list.append("\t\tfor(int j = 0; j < fn_classes(n_classes); j++){{\n\t\t\tscore_t s = tree_{0}[j].decision_function(x);"\
-            "\n\t\t\tscore[j] += s;\n\t\t\ttree_scores[{0} * fn_classes(n_classes) + j] = s;\n\t\t}}".format(ntree))
+        dec_func_template = "\t\tfor(int j = 0; j < fn_classes(n_classes); j++){{\n\t\t\tscore_t s = tree_{0}[j].decision_function(x);"\
+            "\n\t\t\tscore[j] += s;"
+        if cfg['OutputTreeScores']:
+            dec_func_template += "\n\t\t\ttree_scores[{0} * fn_classes(n_classes) + j] = s;"
+        dec_func_template += "\n\t\t}}"
+        decision_functions_list.append(dec_func_template.format(ntree))
     nodes_list.append("\tdefault:return {};".format(2**(ensemble_dict['max_depth'] + 1) - 1))
     leaves_list.append("\tdefault:return {};".format(2**(ensemble_dict['max_depth'])))
     
@@ -69,8 +73,8 @@ def make_optimized_optimized_bdt_code_replacements(ensemble_dict):
 #        f.write(data)
     return switch_case_nodes_code, switch_case_leaves_code, trees_code, decision_functions_code
 
-def make_bdt_code_replacements():
-
+def make_bdt_code_replacements(cfg):
+    #TODO (Dave): fix indentation
     fn_nodes_code = "\nconstexpr int fn_nodes(int max_depth){\n\treturn pow2(max_depth + 1) - 1;\n"
     fn_leaves_code = "\nconstexpr int fn_leaves(int max_depth){\n\treturn pow2(max_depth);\n"
     trees_code = "\nTree<max_depth, input_t, score_t, threshold_t> trees[n_trees][fn_classes(n_classes)];\n"
@@ -79,11 +83,11 @@ def make_bdt_code_replacements():
     		Classes:
     		for(int j = 0; j < fn_classes(n_classes); j++){
             score_t s = trees[i][j].decision_function(x);
-    			score[j] += s;
-            tree_scores[i * fn_classes(n_classes) + j] = s;
-    		}
-    	}
-            """
+    			score[j] += s;"""
+    if cfg['OutputTreeScores']:
+        decision_functions_code +="\ntree_scores[i * fn_classes(n_classes) + j] = s;\n"
+    decision_functions_code += "}}"
+
     return fn_nodes_code, fn_leaves_code, trees_code, decision_functions_code
 
 def write(ensemble_dict, cfg):
@@ -98,10 +102,10 @@ def write(ensemble_dict, cfg):
 
     if cfg['Optimized']:
         fn_nodes_code, fn_leaves_code, trees_code, decision_functions_code = \
-                make_optimized_optimized_bdt_code_replacements(ensemble_dict)
+                make_optimized_optimized_bdt_code_replacements(ensemble_dict, cfg)
     else:
         fn_nodes_code, fn_leaves_code, trees_code, decision_functions_code = \
-                make_bdt_code_replacements()
+                make_bdt_code_replacements(cfg)
 
     f = open(os.path.join(filedir, 'hls-template/firmware/BDT.h'), 'r')
     fout = open('{}/firmware/BDT.h'.format(cfg['OutputDir']), 'w')
@@ -123,6 +127,12 @@ def write(ensemble_dict, cfg):
                     "constexpr int Tree<max_depth, input_t, score_t, threshold_t>::n_nodes;\n\n"\
                     "template<int max_depth, class input_t, class score_t, class threshold_t>\n"\
                     "constexpr int Tree<max_depth, input_t, score_t, threshold_t>::n_leaves;\n"
+        elif 'TREES_PARAM' in line:
+            if cfg['OutputTreeScores']:
+                newline = line.replace(
+                    'TREES_PARAM', ', score_t tree_scores[fn_classes(n_classes) * n_trees]')
+            else:
+                newline = line.replace('TREES_PARAM', '')
         else:
             newline = line
         fout.write(newline)
@@ -140,15 +150,25 @@ def write(ensemble_dict, cfg):
     fout.write('#include "parameters.h"\n')
     fout.write('#include "{}.h"\n'.format(cfg['ProjectName']))
 
-    fout.write(
+    if(cfg['OutputTreeScores']):
+        fout.write(
         'void {}(input_arr_t x, score_arr_t score, score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]){{\n'.format(cfg['ProjectName']))
+    else:
+        fout.write(
+            'void {}(input_arr_t x, score_arr_t score){{\n'.format(cfg['ProjectName']))
     fout.write('\t#pragma HLS array_partition variable=x\n')
     fout.write('\t#pragma HLS array_partition variable=score\n')
-    fout.write('\t#pragma HLS array_partition variable=tree_scores\n')
+    if(cfg['OutputTreeScores']):
+        fout.write('\t#pragma HLS array_partition variable=tree_scores\n')
+    if(not cfg['ControlPort']):
+        fout.write('\t#pragma HLS interface ap_ctrl_none port=return\n')
     if(cfg['Pipeline']):
         fout.write('\t#pragma HLS pipeline\n')
         fout.write('\t#pragma HLS unroll\n')
-    fout.write('\tbdt.decision_function(x, score, tree_scores);\n}')
+    if(cfg['OutputTreeScores']):
+        fout.write('\tbdt.decision_function(x, score, tree_scores);\n}')
+    else:
+        fout.write('\tbdt.decision_function(x, score);\n}')
     fout.close()
 
     ###################
@@ -241,7 +261,11 @@ def write(ensemble_dict, cfg):
         elif 'void myproject(' in line:
             newline = 'void {}(\n'.format(cfg['ProjectName'])
         elif 'hls-fpga-machine-learning insert args' in line:
-            newline = '\tinput_arr_t data,\n\tscore_arr_t score,\n\tscore_t tree_scores[BDT::fn_classes(n_classes) * n_trees]);'
+            newline = '\tinput_arr_t data,\n\tscore_arr_t score'
+            if(cfg['OutputTreeScores']):
+                newline += ",\n\tscore_t tree_scores[BDT::fn_classes(n_classes) * n_trees]);"
+            else:
+                newline += ");"
         # Remove some lines
 
         else:
@@ -261,7 +285,7 @@ def write(ensemble_dict, cfg):
 
     for line in f.readlines():
         indent = ' ' * (len(line) - len(line.lstrip(' ')))
-
+# TODO (Dave) : add support for OutputTreeScores in testbench!
         # Insert numbers
         if 'myproject' in line:
             newline = line.replace('myproject', cfg['ProjectName'])
@@ -291,8 +315,12 @@ def write(ensemble_dict, cfg):
                 ensemble_dict['n_classes'])
         elif '//hls-fpga-machine-learning insert top-level-function' in line:
             newline = line
+            if(cfg['OutputTreeScores']):
+                fmt_str = '{}(x, score, tree_scores);\n'
+            else:
+                fmt_str = '{}(x, score);\n'
             top_level = indent + \
-                '{}(x, score, tree_scores);\n'.format(cfg['ProjectName'])
+                fmt_str.format(cfg['ProjectName'])
             newline += top_level
         elif '//hls-fpga-machine-learning insert predictions' in line:
             newline = line
@@ -375,7 +403,9 @@ def auto_config():
               'XilinxPart': 'xcvu9p-flgb2104-2L-e',
               'ClockPeriod': '5',
               'Pipeline' : True,
-              'Optimized': False}
+              'Optimized': False,
+              'ControlPort': True,
+              'OutputTreeScores': True}
     return config
 
 

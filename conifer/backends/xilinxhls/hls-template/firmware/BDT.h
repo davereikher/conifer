@@ -112,7 +112,7 @@ public:
     score_t normalisation;
 	score_t init_predict[fn_classes(n_classes)];
         //hls-fpga-machine-learning insert trees
-	void decision_function(input_t x, score_t score[fn_classes(n_classes)], score_t tree_scores[fn_classes(n_classes) * n_trees]) const{
+	void decision_function(input_t x, score_t score[fn_classes(n_classes)] TREES_PARAM) const{
         if(unroll){
 //    		#pragma HLS ARRAY_PARTITION variable=trees dim=0
         }
