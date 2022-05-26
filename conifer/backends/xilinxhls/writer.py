@@ -386,6 +386,15 @@ def write(ensemble_dict, cfg):
         elif 'create_clock -period 5 -name default' in line:
             line = 'create_clock -period {} -name default\n'.format(
                 cfg['ClockPeriod'])
+        elif 'set_clock_uncertainty 3' in line:
+            if cfg['ClockUncertainty'] is None:
+                line = ''
+            else:
+                line = 'set_clock_uncertainty {}\n'.format(cfg['ClockUncertainty'])
+        elif 'config_rtl -reset none' in line:
+            if cfg['ResetPort']:
+                line = ''
+
         # Remove some lines
         elif ('weights' in line) or ('-tb firmware/weights' in line):
             line = ''
@@ -405,7 +414,9 @@ def auto_config():
               'Pipeline' : True,
               'Optimized': False,
               'ControlPort': True,
-              'OutputTreeScores': True}
+              'OutputTreeScores': True,
+              'ClockUncertainty': None,
+              'ResetPort': True}
     return config
 
 
