@@ -4,7 +4,7 @@ import json
 from shutil import copyfile
 import sys
 import copy
-from conifer.utils import _ap_include, _json_include
+from ...utils import _ap_include, _json_include
 import logging
 logger = logging.getLogger(__name__)
 

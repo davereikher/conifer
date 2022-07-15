@@ -4,7 +4,7 @@ from shutil import copyfile
 import warnings
 import numpy as np
 import copy
-from conifer.utils import _ap_include
+from ...utils import _ap_include
 import datetime
 import logging
 logger = logging.getLogger(__name__)
