@@ -4,7 +4,7 @@ from shutil import copyfile
 import warnings
 import numpy as np
 import copy
-from conifer.utils import _ap_include
+from ...utils import _ap_include
 import datetime
 import logging
 logger = logging.getLogger(__name__)
@@ -442,6 +442,9 @@ def write(model):
         newline = line
         if 'PYBIND11_MODULE' in line:
             newline = f'PYBIND11_MODULE(conifer_bridge_{model._stamp}, m){{\n'
+        if 'bdt.decision_function(xt, yt, tree_scores)' in line:
+            if not cfg['OutputTreeScores']:
+                newline = 'bdt.decision_function(xt, yt);\n'
         fout.write(newline)
     fin.close()
     fout.close()
