@@ -39,12 +39,12 @@ def write(model):
   for line in fin.readlines():
     newline = line
     if '// conifer insert typedef' in line:
-      newline =  f"typedef {cfg['Precision']} T;\n"
-      newline += f"typedef {cfg['Precision']} U;\n"
+      newline =  f"typedef {cfg['InputPrecision']} T;\n"
+      newline += f"typedef {cfg['ScorePrecision']} U;\n"
     elif 'PYBIND11_MODULE' in line:
       newline = f'PYBIND11_MODULE(conifer_bridge_{model._stamp}, m){{\n'
     elif '// conifer insert include' in line:
-      newline = '#include "ap_fixed.h"' if 'ap_' in cfg['Precision'] else ''
+      newline = '#include "ap_fixed.h"' if (('ap_' in cfg['InputPrecision']) or ('ap_' in cfg['ScorePrecision'])) else ''
     fout.write(newline)
   fin.close()
   fout.close()
@@ -57,7 +57,7 @@ def sim_compile(model):
 
   # include the ap_ headers, but only if needed (e.g. float/double precision doesn't need them)
   ap_include = ""
-  if 'ap_' in cfg['Precision']:
+  if ('ap_' in cfg['InputPrecision']) or ('ap_' in cfg['ScorePrecision']):
     ap_include = _ap_include()
     if ap_include is None:
       os.chdir(curr_dir)
@@ -114,5 +114,7 @@ def build():
 def auto_config():
     config = {'ProjectName': 'my_prj',
               'OutputDir': 'my-conifer-prj',
-              'Precision': 'ap_fixed<18,8>'}
+              'InputPrecision': 'ap_fixed<18,8>',
+              'ScorePrecision': 'ap_fixed<18,8>'}
+
     return config
