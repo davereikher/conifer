@@ -15,6 +15,7 @@ class Simulators(Enum):
 
 def write(model):
 
+  model.save()
   ensembleDict = copy.deepcopy(model._ensembleDict)
   cfg = copy.deepcopy(model.config)
 
@@ -54,7 +55,7 @@ def write(model):
 
   filedir = os.path.dirname(os.path.abspath(__file__))
   logger.info(f"Writing project to {cfg['OutputDir']}")
-  os.makedirs('{}/firmware'.format(cfg['OutputDir']))
+  os.makedirs('{}/firmware'.format(cfg['OutputDir']), exist_ok=True)
   copyfiles = ['AddReduce.vhd', 'BDT.vhd', 'BDTTestbench.vhd', 'SimulationInput.vhd', 'SimulationOutput.vhd',
                'TestUtil.vhd', 'Tree.vhd', 'Types.vhd']
   for f in copyfiles:
@@ -178,7 +179,8 @@ def write(model):
   fout.close()
 
 def auto_config():
-    config = {'ProjectName' : 'my-prj',
+    config = {'Backend' : 'vhdl',
+              'ProjectName' : 'my-prj',
               'OutputDir'   : 'my-conifer-prj',
               'Precision'   : 'ap_fixed<18,8>',
               'XilinxPart' : 'xcvu9p-flgb2104-2L-e',
