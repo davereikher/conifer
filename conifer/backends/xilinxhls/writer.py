@@ -49,8 +49,8 @@ def make_optimized_optimized_bdt_code_replacements(ensemble_dict, cfg):
     for ntree, x in enumerate(ensemble_dict['trees']):
         nodes_list.append('\tcase {}:return {};'.format(ntree, len(x[0]['feature'])))
         leaves_list.append('\tcase {}:return {};'.format(ntree, len([f for f in x[0]['feature'] if f==-2])))
-        trees_list.append("\tTree<{0}, input_t, score_t, threshold_t> tree_{0}[fn_classes(n_classes)];".format(ntree))
-        dec_func_template = "\t\tfor(int j = 0; j < fn_classes(n_classes); j++){{\n\t\t\tscore_t s = tree_{0}[j].decision_function(x);"\
+        trees_list.append("\tTree<{0}, input_t, tree_score_t, threshold_t> tree_{0}[fn_classes(n_classes)];".format(ntree))
+        dec_func_template = "\t\tfor(int j = 0; j < fn_classes(n_classes); j++){{\n\t\t\ttree_score_t s = tree_{0}[j].decision_function(x);"\
             "\n\t\t\tscore[j] += s;"
         if cfg['OutputTreeScores']:
             dec_func_template += "\n\t\t\ttree_scores[{0} * fn_classes(n_classes) + j] = s;"
@@ -151,7 +151,7 @@ def write(model):
 
     if(cfg['OutputTreeScores']):
         fout.write(
-        'void {}(input_arr_t x, score_arr_t score, score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]){{\n'.format(cfg['ProjectName']))
+        'void {}(input_arr_t x, score_arr_t score, tree_score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]){{\n'.format(cfg['ProjectName']))
     else:
         fout.write(
             'void {}(input_arr_t x, score_arr_t score){{\n'.format(cfg['ProjectName']))
@@ -213,22 +213,28 @@ def write(model):
     logger.debug(f"ThresholdPrecision {threshold_precision}")
     fout.write('typedef {} threshold_t;\n'.format(threshold_precision))
 
-    score_precision = None
-    if 'ScorePrecision' in cfg.keys():
-        score_precision = cfg['ScorePrecision']
-    elif 'Precision' in cfg.keys():
-        score_precision = cfg['Precision']
-    if score_precision is None:
-        raise ValueError('Neither Precision nor ScorePrecision specified in configuration')
-    logger.debug(f"ScorePrecision {score_precision}")
-    fout.write('typedef {} score_t;\n'.format(score_precision))
-    fout.write('typedef score_t score_arr_t[n_classes];\n')
+    tree_score_precision = None
+    final_score_precision = None
+    if 'Precision' in cfg.keys():
+        tree_score_precision = cfg['Precision']
+        final_score_precision = cfg['Precision']
+    else:
+        if 'TreeScorePrecision' in cfg.keys():
+            tree_score_precision = cfg['TreeScorePrecision']
+        if 'FinalScorePrecision' in cfg.keys():
+            final_score_precision = cfg['FinalScorePrecision']
+    if (tree_score_precision is None) or (final_score_precision is None):
+        raise ValueError("Must specify either 'Precision' or both 'TreeScorePrecision' and 'FinalScorePrecision' in configuration")
+    logger.debug(f"TreeScorePrecision {tree_score_precision}, FinalScorePrecision {final_score_precision}")
+    fout.write('typedef {} tree_score_t;\n'.format(tree_score_precision))
+    fout.write('typedef {} final_score_t;\n'.format(final_score_precision))
+    fout.write('typedef final_score_t score_arr_t[n_classes];\n')
 
     tree_fields = ['feature', 'threshold', 'value',
                    'children_left', 'children_right', 'parent']
 
     fout.write(
-        "static const BDT::BDT<n_trees, max_depth, n_classes, input_arr_t, score_t, threshold_t, unroll> bdt = \n")
+        "static const BDT::BDT<n_trees, max_depth, n_classes, input_arr_t, tree_score_t, final_score_t, threshold_t, unroll> bdt = \n")
     fout.write("{ // The struct\n")
     newline = "\t" + str(ensemble_dict['norm']) + ", // The normalisation\n"
     fout.write(newline)
@@ -291,7 +297,7 @@ def write(model):
         elif 'hls-fpga-machine-learning insert args' in line:
             newline = '\tinput_arr_t data,\n\tscore_arr_t score'
             if(cfg['OutputTreeScores']):
-                newline += ",\n\tscore_t tree_scores[BDT::fn_classes(n_classes) * n_trees]);"
+                newline += ",\n\ttree_score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]);"
             else:
                 newline += ");"
         # Remove some lines
@@ -328,7 +334,7 @@ def write(model):
             newline += '      in_begin = in_end;\n'
             # brace-init zeros the array out because we use std=c++0x
             newline += '      score_arr_t score{};\n'
-            newline += '      score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]{};\n'
+            newline += '      tree_score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]{};\n'
             # but we can still explicitly zero out if you want
             newline += '      std::fill_n(score, {}, 0.);\n'.format(
                 ensemble_dict['n_classes'])
@@ -338,7 +344,7 @@ def write(model):
             newline += '    std::fill_n(x, {}, 0.);\n'.format(
                 ensemble_dict['n_features'])
             newline += '    score_arr_t score{};\n'
-            newline += '    score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]{};\n'
+            newline += '    tree_score_t tree_scores[BDT::fn_classes(n_classes) * n_trees]{};\n'
             newline += '    std::fill_n(score, {}, 0.);\n'.format(
                 ensemble_dict['n_classes'])
         elif '//hls-fpga-machine-learning insert top-level-function' in line:
@@ -462,7 +468,7 @@ def auto_config(granularity='simple'):
     if granularity == 'full':
         config['InputPrecision'] = 'ap_fixed<18,8>'
         config['ThresholdPrecision'] = 'ap_fixed<18,8>'
-        config['ScorePrecision'] = 'ap_fixed<18,8>'
+        config['TreeScorePrecision'] = 'ap_fixed<18,8>'
     else:
         config['Precision'] = 'ap_fixed<18,8>'
 

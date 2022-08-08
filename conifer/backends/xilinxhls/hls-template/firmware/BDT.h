@@ -20,7 +20,7 @@ constexpr int fn_classes(int n_classes){
   return n_classes == 2 ? 1 : n_classes;
 }
 
-template<int tree_idx, class input_t, class score_t, class threshold_t>
+template<int tree_idx, class input_t, class tree_score_t, class threshold_t>
 struct Tree {
 private:
   static constexpr int n_nodes = fn_nodes(tree_idx);
@@ -28,12 +28,12 @@ private:
 public:
 	int feature[n_nodes];
 	threshold_t threshold[n_nodes];
-	score_t value[n_nodes];
+	tree_score_t value[n_nodes];
 	int children_left[n_nodes];
 	int children_right[n_nodes];
 	int parent[n_nodes];
 
-	score_t decision_function(input_t x) const{
+	tree_score_t decision_function(input_t x) const{
 		#pragma HLS pipeline II = 1
 		#pragma HLS ARRAY_PARTITION variable=feature
 		#pragma HLS ARRAY_PARTITION variable=threshold
@@ -53,7 +53,7 @@ public:
 		bool comparison[n_nodes];
 		bool activation[n_nodes];
 		bool activation_leaf[n_leaves];
-		score_t value_leaf[n_leaves];
+		tree_score_t value_leaf[n_leaves];
 
 		#pragma HLS ARRAY_PARTITION variable=comparison
 		#pragma HLS ARRAY_PARTITION variable=activation
@@ -95,7 +95,7 @@ public:
 			}
 		}
 
-		score_t y = 0;
+		tree_score_t y = 0;
 		for(int i = 0; i < n_leaves; i++){
 			if(activation_leaf[i]){
 				return value_leaf[i];
@@ -105,14 +105,14 @@ public:
 	}
 };
 
-template<int n_trees, int max_depth, int n_classes, class input_t, class score_t, class threshold_t, bool unroll>
+template<int n_trees, int max_depth, int n_classes, class input_t, class tree_score_t, class final_score_t, class threshold_t, bool unroll>
 struct BDT{
 
 public:
-    score_t normalisation;
-	score_t init_predict[fn_classes(n_classes)];
+	final_score_t normalisation;
+	final_score_t init_predict[fn_classes(n_classes)];
         //hls-fpga-machine-learning insert trees
-	void decision_function(input_t x, score_t score[fn_classes(n_classes)] TREES_PARAM) const{
+	void decision_function(input_t x, final_score_t score[fn_classes(n_classes)] TREES_PARAM) const{
         if(unroll){
 //    		#pragma HLS ARRAY_PARTITION variable=trees dim=0
         }
