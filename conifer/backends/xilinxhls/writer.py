@@ -63,20 +63,7 @@ def make_optimized_optimized_bdt_code_replacements(ensemble_dict, cfg):
     switch_case_leaves_code = "\nconstexpr int fn_leaves(int tree_idx){\n\tswitch  (tree_idx) {" + "\n".join(leaves_list) + "\n}\n"
     trees_code = "\n" + "\n".join(trees_list) + "\n"
     decision_functions_code = "\n" + "\n".join(decision_functions_list) + "\n"
-    #print(switch_case_nodes)
-    #print(switch_case_leaves)
-    #print(decision_functions_list)
     
-#    with open(path, "r") as f:
-#        data=f.read()
-#
-#    data=data.replace("%%SWITCH_CASE_N_NODES%%", switch_case_nodes)
-#    data=data.replace("%%SWITCH_CASE_N_LEAVES%%", switch_case_leaves)
-#    data=data.replace("%%TREE_LIST%%", tree_list)
-#    data=data.replace("%%DECISION_FUNCTION_LIST%%", decision_functions_list)
-#        
-#    with open(path, "w") as f:
-#        f.write(data)
     return switch_case_nodes_code, switch_case_leaves_code, trees_code, decision_functions_code
 
 def make_bdt_code_replacements(cfg):
@@ -101,7 +88,6 @@ def write(model):
     model.save()
     ensemble_dict = copy.deepcopy(model._ensembleDict)
     cfg = copy.deepcopy(model.config)
-
     filedir = os.path.dirname(os.path.abspath(__file__))
 
     logger.info(f"Writing project to {cfg['OutputDir']}")
