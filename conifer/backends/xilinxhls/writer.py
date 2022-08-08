@@ -98,6 +98,7 @@ def make_bdt_code_replacements(cfg):
 
 def write(model):
 
+    model.save()
     ensemble_dict = copy.deepcopy(model._ensembleDict)
     cfg = copy.deepcopy(model.config)
 
@@ -105,8 +106,8 @@ def write(model):
 
     logger.info(f"Writing project to {cfg['OutputDir']}")
 
-    os.makedirs('{}/firmware'.format(cfg['OutputDir']))
-    os.makedirs('{}/tb_data'.format(cfg['OutputDir']))
+    os.makedirs('{}/firmware'.format(cfg['OutputDir']), exist_ok=True)
+    os.makedirs('{}/tb_data'.format(cfg['OutputDir']), exist_ok=True)
 
     ###################
     # BDT.h
@@ -461,7 +462,8 @@ def auto_config(granularity='simple'):
         If 'simple', only 'Precision' is included. If 'full', 'InputPrecision', 'ThresholdPrecision', and 'ScorePrecision'
         are included.
     '''
-    config = {'ProjectName': 'my_prj',
+    config = {'Backend' : 'xilinxhls',
+              'ProjectName': 'my_prj',
               'OutputDir': 'my-conifer-prj',
               'XilinxPart': 'xcvu9p-flgb2104-2L-e',
               'ClockPeriod': '5',
@@ -516,6 +518,8 @@ def decision_function(X, model, trees=False):
     else:
         raise Exception(f"Can't handle data shape {X.shape}, expected 1D or 2D shape")
     os.chdir(curr_dir)
+    if len(y.shape) == 2 and y.shape[1] == 1:
+        y = y.reshape(y.shape[0])
     return y
 
 def sim_compile(model):
