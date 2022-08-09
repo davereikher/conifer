@@ -1,4 +1,4 @@
-from conifer import backends
+from . import backends
 import numpy as np
 import os
 import json

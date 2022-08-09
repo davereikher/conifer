@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 import numpy as np
-from conifer.converters.common import addParentAndDepth, padTree
+from .common import addParentAndDepth, padTree
 
 def getOptionValue(bdt, optionName):
     for option in bdt.getroot().find('Options') :

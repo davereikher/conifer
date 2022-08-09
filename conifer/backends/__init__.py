@@ -1,7 +1,7 @@
 import sys
 import importlib.util
 
-from conifer.backends import xilinxhls
+from . import xilinxhls
 
 SPEC_XILINXHLS = importlib.util.find_spec('.xilinxhls', __name__)
 
@@ -15,8 +15,8 @@ SPEC_XILINXHLS.loader.exec_module(vitishls)
 
 del SPEC_XILINXHLS
 
-from conifer.backends import vhdl
-from conifer.backends import cpp
+from . import vhdl
+from . import cpp
 
 _backend_map = {'xilinxhls' : xilinxhls,
                 'vivadohls' : vivadohls,

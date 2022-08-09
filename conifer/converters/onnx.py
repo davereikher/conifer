@@ -1,5 +1,5 @@
 import numpy as np
-from conifer.converters.common import addParentAndDepth, padTree
+from .common import addParentAndDepth, padTree
 import math
 
 #main converter function
