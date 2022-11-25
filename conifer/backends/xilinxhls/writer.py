@@ -438,6 +438,8 @@ def write(model):
         if 'bdt.decision_function(xt, yt, tree_scores)' in line:
             if not cfg['OutputTreeScores']:
                 newline = 'bdt.decision_function(xt, yt);\n'
+        if '#include "firmware/my_prj.h"' in line:
+            newline = f'#include "firmware/{cfg["ProjectName"]}.h"\n'
         fout.write(newline)
     fin.close()
     fout.close()
